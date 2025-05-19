@@ -1,9 +1,6 @@
 const Category = require('../models/Category');
 const Question = require('../models/Question');
-const csv = require('csv-parser');
-const streamifier = require('streamifier');
-const fs = require('fs');
-const path = require('path');
+const Papa = require('papaparse');
 
 // @desc    Create a quiz category (Admin)
 // @route   POST /api/quiz/category
@@ -25,37 +22,61 @@ const createCategory = async (req, res) => {
 // @route   POST /api/quiz/upload/:categoryId
 const uploadQuestions = async (req, res) => {
   const { categoryId } = req.params;
+
   if (!req.file || !req.file.buffer) {
     return res.status(400).json({ message: 'CSV file is required' });
   }
 
-  const questions = [];
-  // Convert buffer into a stream and pipe into csv-parser
-  const stream = streamifier.createReadStream(req.file.buffer).pipe(csv());
-
-  stream.on('data', (row) => {
-    // Ensure your CSV headers match these keys exactly:
-    // questionText, option1, option2, option3, option4, correctAnswer
-    questions.push({
-      category: categoryId,
-      questionText: row.questionText,
-      options: [row.option1, row.option2, row.option3, row.option4],
-      correctAnswer: row.correctAnswer,
-    });
-  });
-
-  stream.on('end', async () => {
-    try {
-      await Question.insertMany(questions);
-      res.status(201).json({ message: 'Questions uploaded successfully' });
-    } catch (error) {
-      res.status(500).json({ message: 'Upload failed', error: error.message });
+  try {
+    const category = await Category.findById(categoryId);
+    if (!category) {
+      return res.status(404).json({ message: 'Category not found' });
     }
-  });
 
-  stream.on('error', (err) => {
-    res.status(500).json({ message: 'CSV parsing failed', error: err.message });
-  });
+    const csvString = req.file.buffer.toString('utf8');
+    const { data, errors } = Papa.parse(csvString, {
+      header: true,
+      skipEmptyLines: true,
+    });
+
+    if (errors.length > 0) {
+      return res.status(400).json({ message: `CSV parsing error: ${errors[0].message}` });
+    }
+
+    const questions = [];
+
+    for (let row of data) {
+      const { questionText, option1, option2, option3, option4, correctAnswer } = row;
+
+      if (!questionText || !option1 || !option2 || !option3 || !option4 || !correctAnswer) {
+        continue; // skip invalid rows
+      }
+
+      const options = [option1, option2, option3, option4];
+      if (!options.includes(correctAnswer)) {
+        continue; // skip if correctAnswer doesn't match options
+      }
+
+      questions.push({
+        category: categoryId,
+        questionText,
+        options,
+        correctAnswer,
+      });
+    }
+
+    if (questions.length === 0) {
+      return res.status(400).json({ message: 'No valid questions found in the CSV file' });
+    }
+
+    await Question.insertMany(questions);
+    res.status(201).json({
+      message: 'Questions uploaded successfully',
+      count: questions.length,
+    });
+  } catch (error) {
+    res.status(500).json({ message: 'Upload failed', error: error.message });
+  }
 };
 
 // @desc    Get all quiz categories (User)
