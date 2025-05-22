@@ -1,38 +1,34 @@
 const Category = require('../models/Category');
 const Question = require('../models/Question');
 const Papa = require('papaparse');
+const mongoose = require('mongoose');
 
-// @desc    Create a quiz category (Admin)
-// @route   POST /api/quiz/category
-const createCategory = async (req, res) => {
-  const { name, timer } = req.body;
-
-  try {
-    const exists = await Category.findOne({ name });
-    if (exists) return res.status(400).json({ message: 'Category already exists' });
-
-    const category = await Category.create({ name, timer });
-    res.status(201).json(category);
-  } catch (err) {
-    res.status(500).json({ message: 'Category creation failed', error: err.message });
-  }
-};
-
-// @desc    Upload questions via CSV (Admin)
-// @route   POST /api/quiz/upload/:categoryId
+// @route   POST /api/quiz/upload
 const uploadQuestions = async (req, res) => {
-  const { categoryId } = req.params;
-
-  if (!req.file || !req.file.buffer) {
-    return res.status(400).json({ message: 'CSV file is required' });
-  }
-
   try {
-    const category = await Category.findById(categoryId);
+    const { category, timer } = req.body;
+
     if (!category) {
-      return res.status(404).json({ message: 'Category not found' });
+      return res.status(400).json({ message: 'Category is required' });
     }
 
+    if (timer === undefined) {
+      return res.status(400).json({ message: 'Timer (in minutes) is required for the category' });
+    }
+
+    if (!req.file || !req.file.buffer) {
+      return res.status(400).json({ message: 'CSV file is required' });
+    }
+
+    // Find existing category by name
+    let categoryDoc = await Category.findOne({ name: category.trim() });
+
+    // If not found, create new category with timer
+    if (!categoryDoc) {
+      categoryDoc = await Category.create({ name: category.trim(), timer: Number(timer) });
+    }
+
+    // CSV Parsing
     const csvString = req.file.buffer.toString('utf8');
     const { data, errors } = Papa.parse(csvString, {
       header: true,
@@ -40,70 +36,106 @@ const uploadQuestions = async (req, res) => {
     });
 
     if (errors.length > 0) {
+      console.error('CSV Parse Error:', errors);
       return res.status(400).json({ message: `CSV parsing error: ${errors[0].message}` });
     }
 
-    const questions = [];
-
-    for (let row of data) {
+    const questions = data.map((row, index) => {
       const { questionText, option1, option2, option3, option4, correctAnswer } = row;
 
-      if (!questionText || !option1 || !option2 || !option3 || !option4 || !correctAnswer) {
-        continue; // skip invalid rows
+      if (!(questionText && option1 && option2 && option3 && option4 && correctAnswer)) {
+        console.warn(`Skipping invalid row at index ${index}`, row);
+        return null;
       }
 
       const options = [option1, option2, option3, option4];
+
       if (!options.includes(correctAnswer)) {
-        continue; // skip if correctAnswer doesn't match options
+        console.warn(`Skipping row with invalid correctAnswer at index ${index}`, correctAnswer);
+        return null;
       }
 
-      questions.push({
-        category: categoryId,
+      return {
+        category: categoryDoc._id,
         questionText,
         options,
         correctAnswer,
-      });
-    }
+      };
+    }).filter(Boolean);
 
     if (questions.length === 0) {
-      return res.status(400).json({ message: 'No valid questions found in the CSV file' });
+      return res.status(400).json({ message: 'No valid questions found in CSV' });
     }
 
     await Question.insertMany(questions);
-    res.status(201).json({
-      message: 'Questions uploaded successfully',
-      count: questions.length,
-    });
-  } catch (error) {
-    res.status(500).json({ message: 'Upload failed', error: error.message });
+
+    return res.status(201).json({ message: 'Questions uploaded successfully', count: questions.length });
+
+  } catch (err) {
+    console.error('UploadQuestions Error:', err);
+    return res.status(500).json({ message: 'Internal server error', error: err.message });
   }
 };
 
-// @desc    Get all quiz categories (User)
+
 // @route   GET /api/quiz/categories
 const getCategories = async (req, res) => {
   try {
-    const categories = await Category.find({});
-    res.status(200).json(categories);
+    const categories = await Category.find();
+
+    // Filter categories to only include ones with questions
+    const categoriesWithQuestions = [];
+
+    for (const cat of categories) {
+      const questionCount = await Question.countDocuments({ category: cat._id });
+      if (questionCount > 0) {
+        categoriesWithQuestions.push(cat);
+      }
+    }
+
+    res.status(200).json(categoriesWithQuestions);
   } catch (err) {
     res.status(500).json({ message: 'Failed to fetch categories', error: err.message });
   }
 };
 
-// @desc    Get shuffled questions by category (User)
-// @route   GET /api/quiz/questions/:categoryId
+
+// @route   GET /api/quiz/questions/:categoryIdOrName
 const getQuizQuestions = async (req, res) => {
   try {
-    const questions = await Question.find({ category: req.params.categoryId }).select('-correctAnswer');
+    const categoryParam = req.params.categoryId;
+
+    let category;
+
+    // Try to find by ObjectId
+    if (mongoose.Types.ObjectId.isValid(categoryParam)) {
+      category = await Category.findById(categoryParam);
+    }
+
+    // If not found, try by category name
+    if (!category) {
+      category = await Category.findOne({ name: categoryParam.trim().toLowerCase() });
+    }
+
+    if (!category) {
+      return res.status(404).json({ message: 'Category not found' });
+    }
+
+    const questions = await Question.find({ category: category._id }).select('-correctAnswer');
+
     const shuffled = questions.sort(() => 0.5 - Math.random());
-    res.status(200).json(shuffled);
+
+    res.status(200).json({
+      questions: shuffled,
+      categoryTimer: category.timer,
+    });
   } catch (err) {
+    console.error('GetQuizQuestions Error:', err);
     res.status(500).json({ message: 'Failed to load questions', error: err.message });
   }
 };
 
 module.exports = {
-  createCategory,
   uploadQuestions,
   getCategories,
   getQuizQuestions,

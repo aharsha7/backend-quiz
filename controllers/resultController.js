@@ -13,6 +13,7 @@ const submitQuiz = async (req, res) => {
 
     let score = 0;
     const results = [];
+    const correctAnswers = {}; // ✅ collect correct answers for each question
 
     questions.forEach((question) => {
       const userAnswerObj = answers.find(a => a.question === question._id.toString());
@@ -26,6 +27,7 @@ const submitQuiz = async (req, res) => {
       });
 
       if (isCorrect) score++;
+      correctAnswers[question._id] = question.correctAnswer; // ✅ map correct answer
     });
 
     const result = await Result.create({
@@ -41,12 +43,12 @@ const submitQuiz = async (req, res) => {
       resultId: result._id,
       score,
       total: questions.length,
+      correctAnswers, // ✅ return correct answers
     });
   } catch (err) {
     res.status(500).json({ message: 'Quiz submission failed', error: err.message });
   }
 };
-
 
 // @desc    Get user's past quiz history
 // @route   GET /api/result/history
