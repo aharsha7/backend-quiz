@@ -1,7 +1,7 @@
-const Category = require('../models/Category');
-const Question = require('../models/Question');
-const Papa = require('papaparse');
-const mongoose = require('mongoose');
+const Category = require("../models/Category");
+const Question = require("../models/Question");
+const Papa = require("papaparse");
+const mongoose = require("mongoose");
 
 // @route   POST /api/quiz/upload
 const uploadQuestions = async (req, res) => {
@@ -9,15 +9,17 @@ const uploadQuestions = async (req, res) => {
     const { category, timer } = req.body;
 
     if (!category) {
-      return res.status(400).json({ message: 'Category is required' });
+      return res.status(400).json({ message: "Category is required" });
     }
 
     if (timer === undefined) {
-      return res.status(400).json({ message: 'Timer (in minutes) is required for the category' });
+      return res
+        .status(400)
+        .json({ message: "Timer (in minutes) is required for the category" });
     }
 
     if (!req.file || !req.file.buffer) {
-      return res.status(400).json({ message: 'CSV file is required' });
+      return res.status(400).json({ message: "CSV file is required" });
     }
 
     // Find existing category by name
@@ -25,58 +27,91 @@ const uploadQuestions = async (req, res) => {
 
     // If not found, create new category with timer
     if (!categoryDoc) {
-      categoryDoc = await Category.create({ name: category.trim(), timer: Number(timer) });
+      categoryDoc = await Category.create({
+        name: category.trim(),
+        timer: Number(timer),
+      });
     }
 
     // CSV Parsing
-    const csvString = req.file.buffer.toString('utf8');
+    const csvString = req.file.buffer.toString("utf8");
     const { data, errors } = Papa.parse(csvString, {
       header: true,
       skipEmptyLines: true,
     });
 
     if (errors.length > 0) {
-      console.error('CSV Parse Error:', errors);
-      return res.status(400).json({ message: `CSV parsing error: ${errors[0].message}` });
+      console.error("CSV Parse Error:", errors);
+      return res
+        .status(400)
+        .json({ message: `CSV parsing error: ${errors[0].message}` });
     }
 
-    const questions = data.map((row, index) => {
-      const { questionText, option1, option2, option3, option4, correctAnswer } = row;
+    const questions = data
+      .map((row, index) => {
+        const {
+          questionText,
+          option1,
+          option2,
+          option3,
+          option4,
+          correctAnswer,
+        } = row;
 
-      if (!(questionText && option1 && option2 && option3 && option4 && correctAnswer)) {
-        console.warn(`Skipping invalid row at index ${index}`, row);
-        return null;
-      }
+        if (
+          !(
+            questionText &&
+            option1 &&
+            option2 &&
+            option3 &&
+            option4 &&
+            correctAnswer
+          )
+        ) {
+          console.warn(`Skipping invalid row at index ${index}`, row);
+          return null;
+        }
 
-      const options = [option1, option2, option3, option4];
+        const options = [option1, option2, option3, option4];
 
-      if (!options.includes(correctAnswer)) {
-        console.warn(`Skipping row with invalid correctAnswer at index ${index}`, correctAnswer);
-        return null;
-      }
+        if (!options.includes(correctAnswer)) {
+          console.warn(
+            `Skipping row with invalid correctAnswer at index ${index}`,
+            correctAnswer
+          );
+          return null;
+        }
 
-      return {
-        category: categoryDoc._id,
-        questionText,
-        options,
-        correctAnswer,
-      };
-    }).filter(Boolean);
+        return {
+          category: categoryDoc._id,
+          questionText,
+          options,
+          correctAnswer,
+        };
+      })
+      .filter(Boolean);
 
     if (questions.length === 0) {
-      return res.status(400).json({ message: 'No valid questions found in CSV' });
+      return res
+        .status(400)
+        .json({ message: "No valid questions found in CSV" });
     }
 
     await Question.insertMany(questions);
 
-    return res.status(201).json({ message: 'Questions uploaded successfully', count: questions.length });
-
+    return res
+      .status(201)
+      .json({
+        message: "Questions uploaded successfully",
+        count: questions.length,
+      });
   } catch (err) {
-    console.error('UploadQuestions Error:', err);
-    return res.status(500).json({ message: 'Internal server error', error: err.message });
+    console.error("UploadQuestions Error:", err);
+    return res
+      .status(500)
+      .json({ message: "Internal server error", error: err.message });
   }
 };
-
 
 // @route   GET /api/quiz/categories
 const getCategories = async (req, res) => {
@@ -87,7 +122,9 @@ const getCategories = async (req, res) => {
     const categoriesWithQuestions = [];
 
     for (const cat of categories) {
-      const questionCount = await Question.countDocuments({ category: cat._id });
+      const questionCount = await Question.countDocuments({
+        category: cat._id,
+      });
       if (questionCount > 0) {
         categoriesWithQuestions.push(cat);
       }
@@ -95,10 +132,11 @@ const getCategories = async (req, res) => {
 
     res.status(200).json(categoriesWithQuestions);
   } catch (err) {
-    res.status(500).json({ message: 'Failed to fetch categories', error: err.message });
+    res
+      .status(500)
+      .json({ message: "Failed to fetch categories", error: err.message });
   }
 };
-
 
 // @route   GET /api/quiz/questions/:categoryIdOrName
 const getQuizQuestions = async (req, res) => {
@@ -114,14 +152,18 @@ const getQuizQuestions = async (req, res) => {
 
     // If not found, try by category name
     if (!category) {
-      category = await Category.findOne({ name: categoryParam.trim().toLowerCase() });
+      category = await Category.findOne({
+        name: categoryParam.trim().toLowerCase(),
+      });
     }
 
     if (!category) {
-      return res.status(404).json({ message: 'Category not found' });
+      return res.status(404).json({ message: "Category not found" });
     }
 
-    const questions = await Question.find({ category: category._id }).select('-correctAnswer');
+    const questions = await Question.find({ category: category._id }).select(
+      "-correctAnswer"
+    );
 
     const shuffled = questions.sort(() => 0.5 - Math.random());
 
@@ -130,13 +172,92 @@ const getQuizQuestions = async (req, res) => {
       categoryTimer: category.timer,
     });
   } catch (err) {
-    console.error('GetQuizQuestions Error:', err);
-    res.status(500).json({ message: 'Failed to load questions', error: err.message });
+    console.error("GetQuizQuestions Error:", err);
+    res
+      .status(500)
+      .json({ message: "Failed to load questions", error: err.message });
   }
 };
+
+// quizController.js
+const manualUpload = async (req, res) => {
+  try {
+    const { category, timer, questions } = req.body;
+
+    const existingCategory = await Category.findOneAndUpdate(
+      { name: category },
+      { $setOnInsert: { name: category, timer } },
+      { new: true, upsert: true }
+    );
+
+    for (const q of questions) {
+      if (
+        typeof q.correctOption !== 'number' ||
+        !Array.isArray(q.options) ||
+        q.correctOption < 0 ||
+        q.correctOption >= q.options.length
+      ) {
+        return res.status(400).json({ message: `Invalid correctOption for question: "${q.text}"` });
+      }
+
+      const question = new Question({
+        category: existingCategory._id,
+        questionText: q.text,
+        options: q.options,
+        correctAnswer: q.options[q.correctOption],
+      });
+
+      await question.save();
+    }
+
+    res.status(200).json({ message: "Questions uploaded successfully" });
+  } catch (err) {
+    console.error("manualUpload error:", err);
+    res.status(500).json({ message: "Server error" });
+  }
+};
+
+// Get all unique categories
+const getAllCategories = async (req, res) => {
+  try {
+    const categories = await Category.find({}, 'name'); // get all categories with only the 'name' field
+    const categoryNames = categories.map(cat => cat.name);
+    res.json(categoryNames);
+  } catch (error) {
+    console.error(error);
+    res.status(500).json({ message: 'Failed to fetch categories' });
+  }
+};
+
+// Delete a category and its associated questions
+const deleteCategory = async (req, res) => {
+  const categoryName = req.params.category;
+
+  try {
+    const categoryDoc = await Category.findOne({ name: categoryName });
+
+    if (!categoryDoc) {
+      return res.status(404).json({ message: `Category "${categoryName}" not found` });
+    }
+
+    const result = await Question.deleteMany({ category: categoryDoc._id });
+    await Category.deleteOne({ _id: categoryDoc._id });
+
+    res.json({
+      message: `Deleted category "${categoryName}" and ${result.deletedCount} questions`
+    });
+  } catch (error) {
+    console.error(error);
+    res.status(500).json({ message: "Failed to delete category" });
+  }
+};
+
 
 module.exports = {
   uploadQuestions,
   getCategories,
+  manualUpload,
   getQuizQuestions,
+  getAllCategories,
+  deleteCategory,
 };

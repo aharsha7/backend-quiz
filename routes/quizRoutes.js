@@ -8,13 +8,19 @@ const {
   uploadQuestions,
   getCategories,
   getQuizQuestions,
+  manualUpload,
+  getAllCategories,
+  deleteCategory,
 } = require('../controllers/quizController');
 
 const { protect } = require('../middlewares/authMiddleware');
 const { isAdmin } = require('../middlewares/roleMiddleware');
 
-// Admin route for uploading questions
+// Admin routes
 router.post('/upload', protect, isAdmin, upload.single('file'), uploadQuestions);
+router.post('/manual-upload', protect, isAdmin, manualUpload);
+router.get('/admin/categories', protect, isAdmin, getAllCategories);
+router.delete('/admin/category/:category', protect, isAdmin, deleteCategory);
 
 // User routes
 router.get('/categories', protect, getCategories);
