@@ -53,7 +53,6 @@ async function seedAdminUser() {
         role: 'admin',
       });
 
-      console.log(`✅ Default admin created: ${adminEmail}`);
     } else {
       console.log('ℹ️ Admin already exists');
     }
