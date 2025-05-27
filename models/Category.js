@@ -10,7 +10,7 @@ const categorySchema = new mongoose.Schema({
   timer: {
     type: Number,
     required: true,
-    default: 5, // default 5 minutes if admin doesn't set
+    default: 2, 
   },
 });
 
