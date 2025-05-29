@@ -90,7 +90,7 @@ const uploadQuestions = async (req, res) => {
         };
       })
       .filter(Boolean);
-
+      
     if (questions.length === 0) {
       return res
         .status(400)
@@ -113,30 +113,30 @@ const uploadQuestions = async (req, res) => {
   }
 };
 
-// @route   GET /api/quiz/categories
+// Controller: Get all categories with question counts and timers
 const getCategories = async (req, res) => {
   try {
     const categories = await Category.find();
 
-    // Filter categories to only include ones with questions
-    const categoriesWithQuestions = [];
+    const enrichedCategories = await Promise.all(
+      categories.map(async (cat) => {
+        const questionCount = await Question.countDocuments({ category: cat._id });
+        return {
+          _id: cat._id,
+          name: cat.name,
+          timer: cat.timer ?? 2,
+          questionCount,
+        };
+      })
+    );
 
-    for (const cat of categories) {
-      const questionCount = await Question.countDocuments({
-        category: cat._id,
-      });
-      if (questionCount > 0) {
-        categoriesWithQuestions.push(cat);
-      }
-    }
-
-    res.status(200).json(categoriesWithQuestions);
+    res.status(200).json(enrichedCategories);
   } catch (err) {
-    res
-      .status(500)
-      .json({ message: "Failed to fetch categories", error: err.message });
+    console.error('Failed to fetch categories:', err);
+    res.status(500).json({ message: "Failed to fetch categories", error: err.message });
   }
 };
+
 
 // @route   GET /api/quiz/questions/:categoryIdOrName
 const getQuizQuestions = async (req, res) => {
@@ -219,23 +219,12 @@ const manualUpload = async (req, res) => {
 // Get all unique categories
 const getAllCategories = async (req, res) => {
   try {
-    const categories = await Category.find();
-
-    const enrichedCategories = await Promise.all(
-      categories.map(async (cat) => {
-        const questionCount = await Question.countDocuments({ category: cat._id });
-        return {
-          _id: cat._id,
-          name: cat.name,
-          timer: cat.timer ?? 2,
-          questionCount,
-        };
-      })
-    );
-
-    res.status(200).json(enrichedCategories);
+    const categories = await Category.find({}, 'name'); // get all categories with only the 'name' field
+    const categoryNames = categories.map(cat => cat.name);
+    res.json(categoryNames);
   } catch (error) {
-    res.status(500).json({ message: 'Failed to fetch categories', error: error.message });
+    console.error(error);
+    res.status(500).json({ message: 'Failed to fetch categories' });
   }
 };
 
