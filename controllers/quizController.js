@@ -219,12 +219,23 @@ const manualUpload = async (req, res) => {
 // Get all unique categories
 const getAllCategories = async (req, res) => {
   try {
-    const categories = await Category.find({}, 'name'); // get all categories with only the 'name' field
-    const categoryNames = categories.map(cat => cat.name);
-    res.json(categoryNames);
+    const categories = await Category.find();
+
+    const enrichedCategories = await Promise.all(
+      categories.map(async (cat) => {
+        const questionCount = await Question.countDocuments({ category: cat._id });
+        return {
+          _id: cat._id,
+          name: cat.name,
+          duration: cat.duration, // Assuming duration is stored in category model
+          questionCount,
+        };
+      })
+    );
+
+    res.status(200).json(enrichedCategories);
   } catch (error) {
-    console.error(error);
-    res.status(500).json({ message: 'Failed to fetch categories' });
+    res.status(500).json({ message: 'Failed to fetch categories', error: error.message });
   }
 };
 
