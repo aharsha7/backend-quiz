@@ -227,7 +227,7 @@ const getAllCategories = async (req, res) => {
         return {
           _id: cat._id,
           name: cat.name,
-          duration: cat.duration, // Assuming duration is stored in category model
+          timer: cat.timer ?? 2,
           questionCount,
         };
       })
