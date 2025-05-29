@@ -138,6 +138,44 @@ const getCategories = async (req, res) => {
   }
 };
 
+// // Add this debug version temporarily to your quizController.js
+// const getQuestionsByCategoryName = async (req, res) => {
+//   try {
+//     const categoryName = req.query.category?.trim();
+
+//     if (!categoryName) {
+//       return res.status(400).json({ message: "Category name is required" });
+//     }
+
+//     const category = await Category.findOne({
+//       name: { $regex: new RegExp(`^${categoryName}$`, 'i') },
+//     });
+
+//     if (!category) {
+//       return res.status(404).json({ message: `Category "${categoryName}" not found` });
+//     }
+
+//     const questions = await Question.find({ category: category._id })
+//       .populate('category', 'name timer')
+//       .lean();
+
+//     const transformedQuestions = questions.map((q) => ({
+//       _id: q._id,
+//       question: q.questionText, // ✅ match frontend expectation
+//       options: q.options,
+//       correctAnswer: q.correctAnswer,
+//       category: q.category?.name || categoryName,
+//     }));
+
+//     return res.status(200).json(transformedQuestions); // ✅ return array
+//   } catch (err) {
+//     console.error("❌ getQuestionsByCategoryName Error:", err);
+//     return res.status(500).json({
+//       message: "Failed to fetch questions",
+//     });
+//   }
+// };
+
 // @route   GET /api/quiz/questions/:categoryIdOrName
 const getQuizQuestions = async (req, res) => {
   try {
@@ -178,8 +216,7 @@ const getQuizQuestions = async (req, res) => {
       .json({ message: "Failed to load questions", error: err.message });
   }
 };
-
-// quizController.js
+// @route   POST /api/quiz/manual-upload
 const manualUpload = async (req, res) => {
   try {
     const { category, timer, questions } = req.body;
@@ -252,6 +289,25 @@ const deleteCategory = async (req, res) => {
   }
 };
 
+const getQuestionsByCategoryName = async (req, res) => {
+  try {
+    const categoryName = req.params.categoryName;
+
+    // Find the category document by name
+    const category = await Category.findOne({ name: categoryName });
+    if (!category) {
+      return res.status(404).json({ message: "Category not found" });
+    }
+
+    // Find all questions linked to this category
+    const questions = await Question.find({ category: category._id });
+
+    res.json(questions);
+  } catch (error) {
+    console.error("Error fetching questions:", error);
+    res.status(500).json({ message: "Server error" });
+  }
+};
 
 module.exports = {
   uploadQuestions,
@@ -260,4 +316,6 @@ module.exports = {
   getQuizQuestions,
   getAllCategories,
   deleteCategory,
+  getQuestionsByCategoryName,
+  // getQuestionsByCategoryId,
 };
