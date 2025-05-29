@@ -12,7 +12,6 @@ const {
   getAllCategories,
   deleteCategory,
   getQuestionsByCategoryName,
-  // getQuestionsByCategoryId,
 } = require('../controllers/quizController');
 
 const { protect } = require('../middlewares/authMiddleware');
@@ -23,10 +22,7 @@ router.post('/upload', protect, isAdmin, upload.single('file'), uploadQuestions)
 router.post('/manual-upload', protect, isAdmin, manualUpload);
 router.get('/admin/categories', protect, isAdmin, getAllCategories);
 router.get('/admin/questions', protect, isAdmin, getQuestionsByCategoryName);
-// ✅ Get all questions for a specific category (admin view)
-// Was misleading as :categoryId
 router.get('/category/:categoryName/questions', protect, isAdmin, getQuestionsByCategoryName);
-
 router.delete('/admin/category/:category', protect, isAdmin, deleteCategory);
 
 // User routes
