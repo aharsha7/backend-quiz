@@ -90,7 +90,7 @@ const uploadQuestions = async (req, res) => {
         };
       })
       .filter(Boolean);
-      
+
     if (questions.length === 0) {
       return res
         .status(400)
@@ -99,12 +99,10 @@ const uploadQuestions = async (req, res) => {
 
     await Question.insertMany(questions);
 
-    return res
-      .status(201)
-      .json({
-        message: "Questions uploaded successfully",
-        count: questions.length,
-      });
+    return res.status(201).json({
+      message: "Questions uploaded successfully",
+      count: questions.length,
+    });
   } catch (err) {
     console.error("UploadQuestions Error:", err);
     return res
@@ -120,7 +118,9 @@ const getCategories = async (req, res) => {
 
     const enrichedCategories = await Promise.all(
       categories.map(async (cat) => {
-        const questionCount = await Question.countDocuments({ category: cat._id });
+        const questionCount = await Question.countDocuments({
+          category: cat._id,
+        });
         return {
           _id: cat._id,
           name: cat.name,
@@ -132,11 +132,12 @@ const getCategories = async (req, res) => {
 
     res.status(200).json(enrichedCategories);
   } catch (err) {
-    console.error('Failed to fetch categories:', err);
-    res.status(500).json({ message: "Failed to fetch categories", error: err.message });
+    console.error("Failed to fetch categories:", err);
+    res
+      .status(500)
+      .json({ message: "Failed to fetch categories", error: err.message });
   }
 };
-
 
 // @route   GET /api/quiz/questions/:categoryIdOrName
 const getQuizQuestions = async (req, res) => {
@@ -191,12 +192,14 @@ const manualUpload = async (req, res) => {
 
     for (const q of questions) {
       if (
-        typeof q.correctOption !== 'number' ||
+        typeof q.correctOption !== "number" ||
         !Array.isArray(q.options) ||
         q.correctOption < 0 ||
         q.correctOption >= q.options.length
       ) {
-        return res.status(400).json({ message: `Invalid correctOption for question: "${q.text}"` });
+        return res
+          .status(400)
+          .json({ message: `Invalid correctOption for question: "${q.text}"` });
       }
 
       const question = new Question({
@@ -219,12 +222,12 @@ const manualUpload = async (req, res) => {
 // Get all unique categories
 const getAllCategories = async (req, res) => {
   try {
-    const categories = await Category.find({}, 'name'); // get all categories with only the 'name' field
-    const categoryNames = categories.map(cat => cat.name);
+    const categories = await Category.find({}, "name"); // get all categories with only the 'name' field
+    const categoryNames = categories.map((cat) => cat.name);
     res.json(categoryNames);
   } catch (error) {
     console.error(error);
-    res.status(500).json({ message: 'Failed to fetch categories' });
+    res.status(500).json({ message: "Failed to fetch categories" });
   }
 };
 
@@ -236,14 +239,16 @@ const deleteCategory = async (req, res) => {
     const categoryDoc = await Category.findOne({ name: categoryName });
 
     if (!categoryDoc) {
-      return res.status(404).json({ message: `Category "${categoryName}" not found` });
+      return res
+        .status(404)
+        .json({ message: `Category "${categoryName}" not found` });
     }
 
     const result = await Question.deleteMany({ category: categoryDoc._id });
     await Category.deleteOne({ _id: categoryDoc._id });
 
     res.json({
-      message: `Deleted category "${categoryName}" and ${result.deletedCount} questions`
+      message: `Deleted category "${categoryName}" and ${result.deletedCount} questions`,
     });
   } catch (error) {
     console.error(error);

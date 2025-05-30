@@ -64,6 +64,34 @@ const getUserHistory = async (req, res) => {
   }
 };
 
+// @desc    Get last 2 quiz results for dashboard
+// @route   GET /api/result/recent-results
+const getRecentResults = async (req, res) => {
+  try {
+    const results = await Result.find({ user: req.user._id })
+      .sort({ createdAt: -1 })
+      .limit(2)
+      .populate('category', 'name');
+
+    // Format the response with calculated fields
+    const formattedResults = results.map(result => ({
+      _id: result._id,
+      category: result.category,
+      score: Math.round((result.score / result.total) * 100), // Convert to percentage
+      correctAnswers: result.score,
+      totalQuestions: result.total,
+      createdAt: result.createdAt,
+      // Calculate time taken if available (you can add this field to your Result model if needed)
+      timeTaken: result.timeTaken || null
+    }));
+
+    res.status(200).json(formattedResults);
+  } catch (error) {
+    console.error('Error fetching recent results:', error);
+    res.status(500).json({ message: 'Error fetching recent results' });
+  }
+};
+
 // @desc    Get detailed quiz result by ID
 // @route   GET /api/result/:id
 const getResultById = async (req, res) => {
@@ -84,4 +112,5 @@ module.exports = {
   submitQuiz,
   getUserHistory,
   getResultById,
+  getRecentResults,
 };

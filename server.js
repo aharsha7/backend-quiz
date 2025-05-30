@@ -21,12 +21,15 @@ app.use(cors());
 app.use(express.json());
 app.use(express.urlencoded({ extended: true }));
 
+// Routes
 app.use('/api/auth', authRoutes);
 app.use('/api/quiz', quizRoutes);
-app.use('/api/result', resultRoutes);
+app.use('/api/result', resultRoutes); // Remove the duplicate line
 
+// Static files
 app.use('/uploads', express.static(path.join(__dirname, 'uploads')));
 
+// Error handling middleware
 app.use(notFound);
 app.use(errorHandler);
 
@@ -53,6 +56,7 @@ async function seedAdminUser() {
         role: 'admin',
       });
 
+      console.log('✅ Default admin user created successfully');
     } else {
       console.log('ℹ️ Admin already exists');
     }
