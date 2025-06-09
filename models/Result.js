@@ -13,7 +13,7 @@ const resultSchema = new mongoose.Schema({
     }
   ],
   // Optional: Add time tracking
-  timeTaken: { type: String }, // e.g., "5 minutes 30 seconds"
+  timeTaken: { type: String },
   startTime: { type: Date },
   endTime: { type: Date }
 }, { timestamps: true });

@@ -1,4 +1,6 @@
 const express = require('express');
+const swaggerUi = require("swagger-ui-express");
+const swaggerSpec = require("./docs/swagger");
 const dotenv = require('dotenv');
 const cors = require('cors');
 const path = require('path');
@@ -21,6 +23,8 @@ app.use(cors());
 app.use(express.json());
 app.use(express.urlencoded({ extended: true }));
 
+app.use("/api-docs", swaggerUi.serve, swaggerUi.setup(swaggerSpec));
+
 // Routes
 app.use('/api/auth', authRoutes);
 app.use('/api/quiz', quizRoutes);
@@ -36,6 +40,7 @@ app.use(errorHandler);
 const PORT = process.env.PORT || 5000;
 app.listen(PORT, () => {
   console.log(`🚀 Server running on http://localhost:${PORT}`);
+  console.log("Swagger docs at http://localhost:5000/api-docs");
 });
 
 async function seedAdminUser() {

@@ -231,6 +231,7 @@ const getAllCategories = async (req, res) => {
   }
 };
 
+//admin
 // Delete a category and its associated questions
 const deleteCategory = async (req, res) => {
   const categoryName = req.params.category;
