@@ -10,20 +10,25 @@ const options = {
     },
     servers: [
       {
-        url: "http://localhost:5000",
+        url: "https://backend-quiz-1-rx4t.onrender.com", 
+        description: "Production server",
       },
+      {
+        url: "http://localhost:5000",
+        description: "Local development server",
+      }
     ],
     components: {
       securitySchemes: {
         bearerAuth: {
           type: "http",
           scheme: "bearer",
-          bearerFormat: "JWT", // Show it's JWT
+          bearerFormat: "JWT",
         },
       },
     },
   },
-  apis: ["./routes/*.js"], // Scan all route files
+  apis: ["./routes/*.js"],
 };
 
 const swaggerSpec = swaggerJsdoc(options);
